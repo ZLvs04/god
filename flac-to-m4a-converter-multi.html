@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FLAC to M4A Converter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+    }
+    input, button {
+      margin-top: 10px;
+      display: block;
+      width: 100%;
+    }
+    .download-link {
+      margin-top: 10px;
+      display: block;
+    }
+  </style>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
+</head>
+<body>
+  <h2>FLAC to M4A Converter (No Metadata)</h2>
+  <p>Select one or more FLAC files to convert them to M4A (AAC, 320kbps):</p>
+
+  <input type="file" id="flacInput" accept="audio/flac" multiple>
+  <button onclick="convert()">Convert</button>
+
+  <p id="status"></p>
+  <div id="downloads"></div>
+
+  <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
+    async function convert() {
+      const fileInput = document.getElementById('flacInput');
+      const status = document.getElementById('status');
+      const downloads = document.getElementById('downloads');
+
+      if (!fileInput.files.length) {
+        status.textContent = "Please select at least one FLAC file.";
+        return;
+      }
+
+      status.textContent = "Loading FFmpeg...";
+      downloads.innerHTML = "";
+      if (!ffmpeg.isLoaded()) await ffmpeg.load();
+
+      for (const file of fileInput.files) {
+        const inputName = file.name;
+        const outputName = inputName.replace(/\.flac$/i, '.m4a');
+
+        status.textContent = `Processing ${inputName}...`;
+        ffmpeg.FS('writeFile', inputName, await fetchFile(file));
+        await ffmpeg.run('-i', inputName, '-c:a', 'aac', '-b:a', '320k', '-map_metadata', '-1', outputName);
+        const data = ffmpeg.FS('readFile', outputName);
+
+        const url = URL.createObjectURL(new Blob([data.buffer], { type: 'audio/mp4' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = outputName;
+        link.textContent = `Download ${outputName}`;
+        link.className = 'download-link';
+        downloads.appendChild(link);
+      }
+
+      status.textContent = "Conversion complete.";
+    }
+  </script>
+</body>
+</html>
